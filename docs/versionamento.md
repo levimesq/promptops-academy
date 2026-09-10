@@ -9,316 +9,209 @@
 **Tipo:** Proposta técnica para validação  
 **Status:** Em revisão
 
-Este documento organiza a proposta de versionamento da frente de Jornada e loop.
+Este documento descreve o fluxo de versionamento da frente de Jornada e loop. Ele não substitui o modelo de dados do projeto nem transforma propostas da Etapa 0 em regras já aprovadas.
 
-As regras identificadas como proposta não representam decisão oficial da equipe até serem validadas na Etapa 0.
+**Referência canônica de dados:** `docs/modelo-de-dados.md`
 
-A estrutura de dados utilizada pela implementação deve seguir o schema canônico definido pela equipe em:
-
-`docs/modelo-de-dados.md`
-
-Em caso de divergência entre este documento e o schema canônico aprovado, prevalece o modelo de dados aprovado pela equipe.
+Em caso de divergência, prevalece o schema canônico aprovado pela equipe.
 
 ---
 
-## 1. Objetivo
+## 1. Base confirmada da Atividade 02
 
-Definir um fluxo de versionamento que permita:
-
-- identificar qual versão foi utilizada em cada teste;
-- preservar versões e resultados anteriores;
-- registrar falhas e ajustes;
-- comparar uma versão antes e depois de uma melhoria;
-- manter rastreabilidade entre prompt, versão e teste.
-
-O objetivo é apoiar o fluxo de melhoria contínua previsto para o PromptOps Academy sem perder o histórico das execuções.
-
----
-
-## 2. Base confirmada da Atividade 02
-
-O Guia de Produto e Execução estabelece como parte do fluxo do produto:
+O Guia de Produto e Execução estabelece o fluxo:
 
 `Versão → Teste → Avaliação → Ajuste → Novo teste`
 
-O registro de teste precisa manter informações suficientes para identificar:
+O teste precisa preservar informações suficientes para identificar a versão executada, entrada, esperado, obtido, avaliação, falha, ajuste, responsável, data e próximo teste.
 
-- prompt e versão;
-- entrada;
-- resultado esperado;
-- resultado obtido;
-- avaliação;
-- falha;
-- ajuste;
-- responsável;
-- data;
-- próximo teste.
+O guia também exige preservação do histórico: um resultado antigo não pode parecer associado a uma versão diferente daquela efetivamente testada.
 
-Também é necessário preservar o vínculo entre um teste e a versão utilizada naquela execução.
+Os cenários Q09 e Q10 verificam, respectivamente:
 
-Esta especificação detalha uma proposta operacional para atender esses requisitos.
+- cópia exata de uma versão histórica;
+- vínculo correto entre teste e versão após falha, nova versão e reteste.
 
 ---
 
-## 3. Fluxo proposto
+## 2. Integração com o schema canônico
+
+Este documento usa, sem redefinir, os campos relevantes de `docs/modelo-de-dados.md`:
+
+- `Prompt.currentVersionId`;
+- `Version.promptId`, `number`, `text`, `restrictions`, `createdAt`, `changeReason`, `editorialChanges`;
+- `Test.promptId`, `versionId`, `textSnapshot`, `input`, `expected`, `obtained`, `evaluation`, `failure`, `adjustment`, `responsible`, `createdAt`, `nextTest`.
+
+O schema atual define `evaluation` como:
+
+`aprovado | ajustar | reprovado`
+
+Também define que:
+
+- testes devem apontar para `promptId` e `versionId` existentes;
+- `currentVersionId` deve apontar para uma versão existente do mesmo prompt;
+- números de versão não podem se repetir dentro do mesmo prompt;
+- alterações operacionais capazes de mudar comportamento, interpretação, formato ou resposta esperada geram nova versão;
+- correções editoriais que não mudam o sentido permanecem na versão e são registradas em `editorialChanges`.
+
+Qualquer mudança futura nesses campos deve ser feita primeiro no schema canônico e depois refletida aqui.
+
+---
+
+## 3. Fluxo de versionamento
 
 ```text
-CRIAR PROMPT
-      ↓
-   RASCUNHO
-      ↓
+RASCUNHO
+   ↓
 pronto para teste
-      ↓
-      v1
-      ↓
-    TESTE
-      ↓
-  AVALIAÇÃO
-      ↓
-┌──────────────────────────────────┐
-│                                  │
-resultado adequado        falha/oportunidade
-│                                  │
-mantém versão              registrar evidência
-                                   ↓
-                             propor ajuste
-                                   ↓
-                       alteração relevante?
-                           ↙           ↘
-                         NÃO           SIM
-                          ↓             ↓
-                  ajuste editorial   nova versão
-                                         ↓
-                                      RETESTE
-                                         ↓
-                                     HISTÓRICO
+   ↓
+  v1
+   ↓
+ TESTE
+   ↓
+AVALIAÇÃO
+   ↓
+┌──────────────────────────────┐
+│                              │
+adequado                 falha/ajuste
+│                              ↓
+mantém versão          alteração necessária
+                               ↓
+                    muda comportamento?
+                       ↙             ↘
+                     NÃO             SIM
+                      ↓               ↓
+              ajuste editorial   nova versão
+                      │               ↓
+                      │            RETESTE
+                      └──────→ HISTÓRICO
+```
 
-O fluxo acima é uma proposta da frente de Jornada e loop para validação na Etapa 0.
+A passagem exata de rascunho para `v1` e o tratamento de situações não cobertas pelo schema permanecem como decisões da Etapa 0.
 
-4. Regras propostas
-RV-01 — Primeira versão
+---
 
-Propõe-se que o prompt permaneça como rascunho enquanto ainda estiver sendo preparado.
+## 4. Regras de versionamento
 
-Quando estiver pronto para o primeiro teste, passa a existir como v1.
+### RV-01 — Primeira versão
+**Proposta da frente:** o prompt permanece em rascunho enquanto está sendo preparado. Ao ficar pronto para o primeiro teste, passa a `v1`.
 
-RV-02 — Preservação do histórico
+### RV-02 — Histórico preservado
+**Alinhado ao guia e ao schema:** uma versão já testada não deve ter seu histórico silenciosamente substituído por uma alteração operacional posterior.
 
-Depois que uma versão possuir teste registrado, alterações relevantes não devem sobrescrever silenciosamente o histórico daquela execução.
+### RV-03 — Teste vinculado à versão
+**Confirmado no schema:** cada teste identifica a versão realmente executada por `versionId`.
 
-A versão anterior deve continuar disponível para consulta.
+### RV-04 — Texto executado
+**Confirmado no schema:** `textSnapshot` preserva o texto exato utilizado na execução do teste.
 
-RV-03 — Teste vinculado à versão
+### RV-05 — Avaliação
+**Confirmado no schema:** `evaluation` utiliza `aprovado`, `ajustar` ou `reprovado`. A avaliação deve seguir critérios definidos para o teste.
 
-Todo teste deve permitir identificar exatamente a versão utilizada na execução.
+### RV-06 — Nova versão
+**Confirmado no schema atual:** alteração operacional capaz de mudar comportamento, interpretação, formato ou resposta esperada gera nova versão.
 
-O relacionamento e os nomes de propriedades devem seguir docs/modelo-de-dados.md.
+### RV-07 — Alteração editorial
+**Confirmado no schema atual:** correção que não altera o sentido não gera nova versão e é registrada em `editorialChanges`.
 
-RV-04 — Evidência da execução
+### RV-08 — Impacto incerto
+**Proposta da frente:** se não for possível determinar com segurança se uma mudança altera o comportamento, priorizar nova versão para preservar a rastreabilidade.
 
-O registro precisa preservar evidência suficiente para impedir que um teste antigo pareça pertencer a um conteúdo diferente daquele realmente executado.
+### RV-09 — Versão atual
+**Confirmado no schema:** `currentVersionId` identifica a versão atual e deve apontar para uma versão existente do mesmo prompt.
 
-Caso o schema canônico utilize um campo específico para snapshot do texto, deve ser utilizado o nome definido em docs/modelo-de-dados.md.
+### RV-10 — Motivo da evolução
+**Alinhado ao schema:** `failure` e `adjustment` registram a evidência que originou a mudança; `changeReason` pode complementar o histórico da nova versão.
 
-RV-05 — Avaliação
+### RV-11 — Reteste
+**Alinhado ao guia:** uma nova versão precisa ser testada antes de ser apresentada como melhoria. Quando possível, reutilizar a mesma entrada e os mesmos critérios.
 
-A avaliação deve utilizar os estados definidos no schema canônico.
+### RV-12 — Evidência de melhoria
+**Alinhado ao guia:** a melhoria é demonstrada pela comparação das evidências de testes vinculados às respectivas versões, e não apenas pela existência de uma versão nova.
 
-No padrão atualmente alinhado pela equipe, o estado intermediário é:
+---
 
-ajustar
+## 5. Exemplo mínimo
 
-A avaliação deve considerar critérios definidos para o teste, e não somente uma percepção subjetiva sobre a resposta.
+```text
+OP-02
+├── v1
+│   └── T01 → reprovado
+│       falha: criou métricas sem evidência
+│       ajuste: restringir métricas não sustentadas pela entrada
+│
+└── v2
+    └── T02 → aprovado
+```
 
-RV-06 — Gatilho para nova versão
+Nesse caso, T01 permanece ligado à v1 e T02 à v2. O `textSnapshot` preserva o texto executado em cada teste.
 
-Proposta para validação na Etapa 0:
+Uma correção exclusivamente editorial, como `"Analize"` → `"Analise"`, permanece na mesma versão e é registrada em `editorialChanges`, conforme o schema atual.
 
-criar uma nova versão quando uma alteração puder modificar o comportamento, interpretação, formato ou resposta esperada do prompt.
+---
 
-Exemplos:
+## 6. Integridade, privacidade e persistência
 
-objetivo;
-instrução principal;
-contexto relevante;
-constraints;
-formato esperado;
-critérios de qualidade;
-próxima ação.
+O versionamento deve seguir as validações de `docs/modelo-de-dados.md`.
 
-O gatilho definitivo para criação de uma nova versão depende da aprovação da Etapa 0.
+Para esta frente, são essenciais:
 
-RV-07 — Correções editoriais
+- não criar referências para prompts ou versões inexistentes;
+- preservar versões e testes históricos;
+- validar o JSON recuperado antes de utilizá-lo;
+- tratar falhas de leitura ou gravação sem informar sucesso indevido;
+- não armazenar senhas, tokens, chaves de API ou outros segredos;
+- evitar dados pessoais, confidenciais ou desnecessários em prompts, testes e resultados;
+- aplicar às exportações as mesmas regras de privacidade do armazenamento local;
+- tratar conteúdo de prompt como texto, sem renderização arbitrária de HTML.
 
-Proposta para validação:
+O MVP utiliza JSON local e `localStorage`; esses mecanismos não devem ser tratados como armazenamento seguro para dados sensíveis.
 
-uma correção puramente editorial que não altere o significado ou comportamento esperado pode permanecer na mesma versão, desde que exista rastreabilidade da alteração conforme o schema canônico.
+---
 
-Exemplo:
+## 7. QA e evidência
 
-"Analize os gargalos." → "Analise os gargalos."
+### Q09 — Versão histórica
+**Cenário:** selecionar uma versão anterior e copiar.  
+**Esperado:** copiar exatamente o texto da versão exibida.
 
-RV-08 — Alteração de impacto incerto
+### Q10 — Nova versão após falha
+**Cenário:** registrar falha, criar uma nova versão e repetir o teste.  
+**Esperado:** cada teste continuar vinculado à versão correta.
 
-Proposta para validação:
+Cada execução deve registrar o esperado, o obtido, o status da execução, responsável, data e evidência. Um teste só pode ser marcado como executado depois da execução real.
 
-quando não for possível determinar com segurança se uma alteração modifica o comportamento esperado do prompt, priorizar a criação de nova versão para preservar a rastreabilidade.
+---
 
-RV-09 — Versão atual
-
-A identificação da versão atual deve utilizar a relação definida no schema canônico.
-
-Versões anteriores permanecem disponíveis para histórico e comparação.
-
-RV-10 — Justificativa da alteração
-
-A falha e o ajuste registrados no teste devem fornecer a principal evidência para explicar uma evolução de versão.
-
-Informações complementares sobre a mudança devem utilizar apenas os campos existentes no schema canônico.
-
-RV-11 — Reteste
-
-Uma nova versão não deve ser considerada melhoria apenas por ter sido criada.
-
-Ela precisa ser testada.
-
-Quando possível, o reteste deve reutilizar a mesma entrada e os mesmos critérios para facilitar a comparação.
-
-RV-12 — Evidência de melhoria
-
-Uma melhoria deve ser demonstrada por evidência de testes vinculados às respectivas versões.
-
-Exemplo:
-
-v1
-└── T01 → reprovado
-      ↓
-   ajuste
-      ↓
-v2
-└── T02 → aprovado
-
-A criação da v2, isoladamente, não comprova melhoria.
-
-5. Integração com o schema canônico
-
-Este documento não redefine o modelo de dados.
-
-A fonte de verdade para:
-
-entidades;
-nomes de campos;
-tipos;
-valores permitidos;
-IDs;
-relações;
-referências;
-datas;
-status;
-
-é:
-
-docs/modelo-de-dados.md
-
-A implementação de versionamento deve utilizar os nomes padronizados definidos nesse arquivo.
-
-Entre os alinhamentos informados pela equipe estão:
-
-constraints para restrições;
-createdAt para data de criação;
-ajustar como estado intermediário de avaliação/status correspondente.
-
-Novos campos não devem ser tratados como obrigatórios apenas por aparecerem nesta proposta.
-
-Se uma necessidade de versionamento exigir alteração do schema canônico, ela deve ser discutida com a frente de Dados e persistência antes da implementação.
-
-6. Integridade dos dados
-
-O versionamento deve respeitar as validações de integridade definidas no modelo de dados.
-
-Em especial:
-
-IDs devem ser válidos e únicos;
-um teste só pode referenciar uma versão existente;
-uma versão deve pertencer ao prompt correto;
-referências não devem apontar para registros inexistentes;
-alterações não devem apagar silenciosamente versões ou testes históricos;
-JSON recuperado deve ser validado antes de ser utilizado.
-
-Falhas de leitura ou gravação não devem ser apresentadas ao usuário como sucesso.
-
-7. Privacidade e segurança
-
-O PromptOps Academy utiliza JSON e localStorage no MVP.
-
-Esses mecanismos não devem ser tratados como armazenamento seguro para informações sensíveis.
-
-Para testes, demonstrações e dados persistidos localmente, propõe-se:
-
-utilizar dados fictícios ou autorizados;
-não armazenar senhas;
-não armazenar tokens ou chaves de API;
-evitar dados pessoais ou confidenciais desnecessários;
-não registrar informações sensíveis dentro de entradas, resultados ou evidências de teste;
-validar dados recuperados do JSON/localStorage;
-tratar conteúdo de prompts e resultados como texto, evitando renderização arbitrária de HTML;
-avisar quando uma operação de persistência falhar;
-revisar o conteúdo antes de qualquer exportação;
-não incluir dados sensíveis em exportações.
-
-As regras finais de privacidade devem permanecer alinhadas à frente de Governança e aceite e às decisões da equipe.
-
-8. Evidências e QA
-
-A validação do versionamento deve utilizar os cenários de QA definidos pelo projeto.
-
-São diretamente relacionados a esta especificação:
-
-Q09
-
-Selecionar uma versão anterior e copiar.
-
-Esperado: copiar exatamente a versão exibida.
-
-Q10
-
-Registrar uma falha, criar uma nova versão e repetir o teste.
-
-Esperado: cada teste permanecer vinculado à versão correta.
-
-Também devem ser registradas:
-
-entrada;
-resultado esperado;
-resultado obtido;
-avaliação;
-responsável;
-data;
-evidência da execução.
-
-Nenhum teste deve ser marcado como executado antes da execução real.
-
-9. Dependências
+## 8. Dependências e revisão
 
 Esta especificação depende de:
 
-docs/modelo-de-dados.md — schema canônico;
-critérios de aceite da Etapa 0;
-validações de integridade;
-regras de privacidade e proteção de dados;
-revisão cruzada com as frentes relacionadas.
+- `docs/modelo-de-dados.md` — contrato canônico de dados;
+- Dados e persistência — Danyelle;
+- Governança e aceite — Isaac;
+- Arquitetura e integração — Luan;
+- aprovação da Etapa 0 — Rogério.
 
-A frente de Jornada e loop não deve alterar unilateralmente o contrato de dados.
+Alterações no contrato de dados não devem ser feitas unilateralmente pela frente de Jornada e loop.
 
-10. Status para aprovação
+---
 
-A lógica deste documento permanece como proposta da frente de Jornada e loop.
+## 9. Status para aprovação
 
-Antes de ser considerada aprovada:
+### Confirmado / referenciado
 
-deve estar alinhada ao schema canônico;
-deve passar pela revisão da equipe;
-eventuais divergências devem ser resolvidas;
-a validação final da Etapa 0 permanece com Rogério.
+- fluxo de loop da Atividade 02;
+- vínculo teste ↔ versão;
+- preservação do histórico;
+- campos e validações definidos no schema canônico;
+- Q09 e Q10;
+- requisitos de integridade e proteção de dados.
 
-Nenhuma regra marcada como proposta deve ser tratada como decisão oficial antes dessa validação.
+### Propostas ainda dependentes de validação
+
+- momento operacional exato de rascunho → `v1`;
+- tratamento RV-08 para alterações de impacto incerto;
+- detalhes de execução não definidos pelo guia ou pelo schema.
+
+A validação final da Etapa 0 permanece com Rogério.
