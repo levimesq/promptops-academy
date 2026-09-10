@@ -2,11 +2,11 @@
 
 ## Status
 
-**Atividade:** Atividade Real 02 — PromptOps Academy  
-**Frente oficial:** Jornada e loop  
-**Responsável:** Levi  
-**Etapa:** 0 — Fundação  
-**Tipo:** Proposta técnica para validação  
+**Atividade:** Atividade Real 02 — PromptOps Academy
+**Frente oficial:** Jornada e loop
+**Responsável:** Levi
+**Etapa:** 0 — Fundação
+**Tipo:** Proposta técnica para validação
 **Status:** Em revisão
 
 Este documento descreve o fluxo de versionamento da frente de Jornada e loop. Ele não substitui o modelo de dados do projeto nem transforma propostas da Etapa 0 em regras já aprovadas.
@@ -172,11 +172,15 @@ O MVP utiliza JSON local e `localStorage`; esses mecanismos não devem ser trata
 ## 7. QA e evidência
 
 ### Q09 — Versão histórica
-**Cenário:** selecionar uma versão anterior e copiar.  
+
+**Cenário:** selecionar uma versão anterior e copiar.
+
 **Esperado:** copiar exatamente o texto da versão exibida.
 
 ### Q10 — Nova versão após falha
-**Cenário:** registrar falha, criar uma nova versão e repetir o teste.  
+
+**Cenário:** registrar falha, criar uma nova versão e repetir o teste.
+
 **Esperado:** cada teste continuar vinculado à versão correta.
 
 Cada execução deve registrar o esperado, o obtido, o status da execução, responsável, data e evidência. Um teste só pode ser marcado como executado depois da execução real.
